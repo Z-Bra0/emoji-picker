@@ -2,7 +2,7 @@
 
 A simple, ad-free emoji search page. No installs, no tracking, no clutter.
 
-**[Live Demo](https://github.com)**
+**[Live Demo](https://z-bra0.github.io/emoji-picker/)**
 
 ## Features
 
