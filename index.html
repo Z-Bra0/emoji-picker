@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emoji Picker</title>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html { scroll-behavior: smooth; }
+    .emoji-btn {
+      font-size: 1.6rem;
+      line-height: 1;
+      cursor: pointer;
+      border-radius: 0.5rem;
+      padding: 0.35rem;
+      transition: background 0.1s, transform 0.1s;
+      border: none;
+      background: transparent;
+      user-select: none;
+    }
+    .emoji-btn:hover {
+      background: oklch(var(--b2));
+      transform: scale(1.2);
+      position: relative;
+      z-index: 50;
+    }
+    .emoji-btn:active { transform: scale(0.95); }
+    #toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      pointer-events: none;
+    }
+    .category-section { scroll-margin-top: 7rem; }
+  </style>
+</head>
+<body class="bg-base-100 min-h-screen">
+
+  <!-- Navbar -->
+  <div class="navbar bg-base-100 border-b border-base-200 sticky top-0 z-40 shadow-sm">
+    <div class="navbar-start">
+      <span class="text-xl font-bold tracking-tight pl-2">Emoji</span>
+    </div>
+    <div class="navbar-center w-full max-w-md">
+      <label class="input input-bordered flex items-center gap-2 w-full">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+        </svg>
+        <input id="search" type="text" placeholder="Search emojis…" class="grow" autocomplete="off" />
+        <kbd id="clear-btn" class="kbd kbd-sm hidden cursor-pointer" title="Clear">✕</kbd>
+      </label>
+    </div>
+    <div class="navbar-end pr-2">
+      <label class="swap swap-rotate">
+        <input id="theme-toggle" type="checkbox" />
+        <svg class="swap-off h-5 w-5 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.64 17l-.71.71a1 1 0 0 0 1.41 1.41l.71-.71A1 1 0 0 0 5.64 17zM5 12a1 1 0 0 0-1-1H3a1 1 0 0 0 0 2h1a1 1 0 0 0 1-1zm7-7a1 1 0 0 0 1-1V3a1 1 0 0 0-2 0v1a1 1 0 0 0 1 1zM5.64 7.05a1 1 0 0 0 .7.29 1 1 0 0 0 .71-.29 1 1 0 0 0 0-1.41l-.71-.71a1 1 0 0 0-1.41 1.41zm12 .29a1 1 0 0 0 .7-.29l.71-.71a1 1 0 0 0-1.41-1.41l-.64.71a1 1 0 0 0 0 1.41 1 1 0 0 0 .64.29zM21 11h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2zm-9 8a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1zm6.36-2a1 1 0 0 0-1.41 1.41l.71.71a1 1 0 0 0 1.41-1.41zM12 6.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
+        <svg class="swap-on h-5 w-5 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.64 13a1 1 0 0 0-1.27-.06A8 8 0 0 1 11.06 2.43a1 1 0 0 0-1.3-1.27 10 10 0 1 0 11.85 11.85 1 1 0 0 0-.06-1.01z"/></svg>
+      </label>
+    </div>
+  </div>
+
+  <!-- Category Tabs -->
+  <div id="category-tabs" class="sticky top-16 z-30 bg-base-100 border-b border-base-200 overflow-x-auto">
+    <div class="tabs tabs-bordered flex-nowrap whitespace-nowrap px-2 min-w-max">
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="max-w-5xl mx-auto px-4 py-6" id="main-content">
+    <!-- Search results container -->
+    <div id="search-results" class="hidden">
+      <h2 class="text-sm font-semibold text-base-content/50 uppercase tracking-widest mb-3">Results</h2>
+      <div id="search-grid" class="flex flex-wrap gap-1"></div>
+      <p id="no-results" class="hidden text-base-content/40 text-sm mt-4">No emojis found.</p>
+    </div>
+    <!-- Category sections -->
+    <div id="categories-container"></div>
+  </main>
+
+  <!-- Toast -->
+  <div id="toast-container" aria-live="polite"></div>
+
+<script>
+const EMOJIS = {
+  "Smileys": [
+    {e:"😀",n:"Grinning Face"},{e:"😃",n:"Grinning Face Big Eyes"},{e:"😄",n:"Grinning Face Smiling Eyes"},{e:"😁",n:"Beaming Face Smiling Eyes"},{e:"😆",n:"Grinning Squinting Face"},{e:"😅",n:"Grinning Face Sweat"},{e:"🤣",n:"Rolling on Floor Laughing"},{e:"😂",n:"Face Tears of Joy"},{e:"🙂",n:"Slightly Smiling Face"},{e:"🙃",n:"Upside-Down Face"},{e:"😉",n:"Winking Face"},{e:"😊",n:"Smiling Face Smiling Eyes"},{e:"😇",n:"Smiling Face Halo"},{e:"🥰",n:"Smiling Face Hearts"},{e:"😍",n:"Smiling Face Heart-Eyes"},{e:"🤩",n:"Star-Struck"},{e:"😘",n:"Face Blowing a Kiss"},{e:"😗",n:"Kissing Face"},{e:"😚",n:"Kissing Face Closed Eyes"},{e:"😙",n:"Kissing Face Smiling Eyes"},{e:"🥲",n:"Smiling Face Tear"},{e:"😋",n:"Face Savoring Food"},{e:"😛",n:"Face Tongue"},{e:"😜",n:"Winking Face Tongue"},{e:"🤪",n:"Zany Face"},{e:"😝",n:"Squinting Face Tongue"},{e:"🤑",n:"Money-Mouth Face"},{e:"🤗",n:"Smiling Face Open Hands"},{e:"🤭",n:"Face Hand Over Mouth"},{e:"🤫",n:"Shushing Face"},{e:"🤔",n:"Thinking Face"},{e:"🤐",n:"Zipper-Mouth Face"},{e:"🤨",n:"Face Raised Eyebrow"},{e:"😐",n:"Neutral Face"},{e:"😑",n:"Expressionless Face"},{e:"😶",n:"Face Without Mouth"},{e:"😏",n:"Smirking Face"},{e:"😒",n:"Unamused Face"},{e:"🙄",n:"Face Rolling Eyes"},{e:"😬",n:"Grimacing Face"},{e:"😮",n:"Face Open Mouth"},{e:"😯",n:"Hushed Face"},{e:"😲",n:"Astonished Face"},{e:"😳",n:"Flushed Face"},{e:"🥺",n:"Pleading Face"},{e:"😦",n:"Frowning Face Open Mouth"},{e:"😧",n:"Anguished Face"},{e:"😨",n:"Fearful Face"},{e:"😰",n:"Anxious Face Sweat"},{e:"😥",n:"Sad but Relieved Face"},{e:"😢",n:"Crying Face"},{e:"😭",n:"Loudly Crying Face"},{e:"😱",n:"Face Screaming in Fear"},{e:"😖",n:"Confounded Face"},{e:"😣",n:"Persevering Face"},{e:"😞",n:"Disappointed Face"},{e:"😓",n:"Downcast Face Sweat"},{e:"😩",n:"Weary Face"},{e:"😫",n:"Tired Face"},{e:"🥱",n:"Yawning Face"},{e:"😤",n:"Face Steam From Nose"},{e:"😡",n:"Enraged Face"},{e:"😠",n:"Angry Face"},{e:"🤬",n:"Face Symbols Over Mouth"},{e:"😈",n:"Smiling Face Horns"},{e:"👿",n:"Angry Face Horns"},{e:"💀",n:"Skull"},{e:"☠️",n:"Skull and Crossbones"},{e:"💩",n:"Pile of Poo"},{e:"🤡",n:"Clown Face"},{e:"👹",n:"Ogre"},{e:"👺",n:"Goblin"},{e:"👻",n:"Ghost"},{e:"👽",n:"Alien"},{e:"👾",n:"Alien Monster"},{e:"🤖",n:"Robot"},{e:"😺",n:"Grinning Cat"},{e:"😸",n:"Grinning Cat Smiling Eyes"},{e:"😹",n:"Cat Joy"},{e:"😻",n:"Smiling Cat Heart-Eyes"},{e:"😼",n:"Cat Wry Smile"},{e:"😽",n:"Kissing Cat"},{e:"🙀",n:"Weary Cat"},{e:"😿",n:"Crying Cat"},{e:"😾",n:"Pouting Cat"}
+  ],
+  "People": [
+    {e:"👋",n:"Waving Hand"},{e:"🤚",n:"Raised Back of Hand"},{e:"🖐️",n:"Hand Fingers Splayed"},{e:"✋",n:"Raised Hand"},{e:"🖖",n:"Vulcan Salute"},{e:"👌",n:"OK Hand"},{e:"🤌",n:"Pinched Fingers"},{e:"✌️",n:"Victory Hand"},{e:"🤞",n:"Crossed Fingers"},{e:"🤟",n:"Love-You Gesture"},{e:"🤘",n:"Sign of the Horns"},{e:"🤙",n:"Call Me Hand"},{e:"👈",n:"Backhand Index Pointing Left"},{e:"👉",n:"Backhand Index Pointing Right"},{e:"👆",n:"Backhand Index Pointing Up"},{e:"👇",n:"Backhand Index Pointing Down"},{e:"☝️",n:"Index Pointing Up"},{e:"👍",n:"Thumbs Up"},{e:"👎",n:"Thumbs Down"},{e:"✊",n:"Raised Fist"},{e:"👊",n:"Oncoming Fist"},{e:"🤛",n:"Left-Facing Fist"},{e:"🤜",n:"Right-Facing Fist"},{e:"👏",n:"Clapping Hands"},{e:"🙌",n:"Raising Hands"},{e:"👐",n:"Open Hands"},{e:"🤲",n:"Palms Up Together"},{e:"🙏",n:"Folded Hands"},{e:"✍️",n:"Writing Hand"},{e:"💅",n:"Nail Polish"},{e:"🤳",n:"Selfie"},{e:"💪",n:"Flexed Biceps"},{e:"🦾",n:"Mechanical Arm"},{e:"🦿",n:"Mechanical Leg"},{e:"🦵",n:"Leg"},{e:"🦶",n:"Foot"},{e:"👂",n:"Ear"},{e:"🦻",n:"Ear with Hearing Aid"},{e:"👃",n:"Nose"},{e:"🧠",n:"Brain"},{e:"🫀",n:"Anatomical Heart"},{e:"🫁",n:"Lungs"},{e:"🦷",n:"Tooth"},{e:"🦴",n:"Bone"},{e:"👀",n:"Eyes"},{e:"👁️",n:"Eye"},{e:"👅",n:"Tongue"},{e:"👄",n:"Mouth"},{e:"🫦",n:"Biting Lip"},{e:"👶",n:"Baby"},{e:"🧒",n:"Child"},{e:"👦",n:"Boy"},{e:"👧",n:"Girl"},{e:"🧑",n:"Person"},{e:"👱",n:"Person Blond Hair"},{e:"👨",n:"Man"},{e:"🧔",n:"Person Beard"},{e:"👩",n:"Woman"},{e:"🧓",n:"Older Person"},{e:"👴",n:"Old Man"},{e:"👵",n:"Old Woman"},{e:"🙍",n:"Person Frowning"},{e:"🙎",n:"Person Pouting"},{e:"🙅",n:"Person Gesturing No"},{e:"🙆",n:"Person Gesturing OK"},{e:"💁",n:"Person Tipping Hand"},{e:"🙋",n:"Person Raising Hand"},{e:"🧏",n:"Deaf Person"},{e:"🙇",n:"Person Bowing"},{e:"🤦",n:"Person Facepalming"},{e:"🤷",n:"Person Shrugging"},{e:"👮",n:"Police Officer"},{e:"🕵️",n:"Detective"},{e:"💂",n:"Guard"},{e:"🥷",n:"Ninja"},{e:"👷",n:"Construction Worker"},{e:"🫅",n:"Person Crown"},{e:"🤴",n:"Prince"},{e:"👸",n:"Princess"},{e:"👳",n:"Person Wearing Turban"},{e:"👲",n:"Person Skullcap"},{e:"🧕",n:"Woman Headscarf"},{e:"🤵",n:"Person Tuxedo"},{e:"👰",n:"Person Veil"},{e:"🫄",n:"Pregnant Person"},{e:"🤰",n:"Pregnant Woman"},{e:"🤱",n:"Breast-Feeding"},{e:"👩‍⚕️",n:"Woman Health Worker"},{e:"👨‍⚕️",n:"Man Health Worker"},{e:"👩‍🎓",n:"Woman Student"},{e:"👨‍🎓",n:"Man Student"},{e:"👩‍🏫",n:"Woman Teacher"},{e:"👨‍🏫",n:"Man Teacher"},{e:"👩‍⚖️",n:"Woman Judge"},{e:"👨‍⚖️",n:"Man Judge"},{e:"👩‍🌾",n:"Woman Farmer"},{e:"👨‍🌾",n:"Man Farmer"},{e:"👩‍🍳",n:"Woman Cook"},{e:"👨‍🍳",n:"Man Cook"},{e:"👩‍🔧",n:"Woman Mechanic"},{e:"👨‍🔧",n:"Man Mechanic"},{e:"👩‍🏭",n:"Woman Factory Worker"},{e:"👩‍💼",n:"Woman Office Worker"},{e:"👩‍🔬",n:"Woman Scientist"},{e:"👩‍🎨",n:"Woman Artist"},{e:"👩‍✈️",n:"Woman Pilot"},{e:"👩‍🚀",n:"Woman Astronaut"},{e:"👩‍🚒",n:"Woman Firefighter"},{e:"🧙",n:"Mage"},{e:"🧝",n:"Elf"},{e:"🧛",n:"Vampire"},{e:"🧟",n:"Zombie"},{e:"🧞",n:"Genie"},{e:"🧜",n:"Merperson"},{e:"🧚",n:"Fairy"},{e:"👼",n:"Baby Angel"},{e:"🤶",n:"Mrs Claus"},{e:"🎅",n:"Santa Claus"},{e:"🦸",n:"Superhero"},{e:"🦹",n:"Supervillain"}
+  ],
+  "Animals": [
+    {e:"🐶",n:"Dog Face"},{e:"🐱",n:"Cat Face"},{e:"🐭",n:"Mouse Face"},{e:"🐹",n:"Hamster"},{e:"🐰",n:"Rabbit Face"},{e:"🦊",n:"Fox"},{e:"🐻",n:"Bear"},{e:"🐼",n:"Panda"},{e:"🐨",n:"Koala"},{e:"🐯",n:"Tiger Face"},{e:"🦁",n:"Lion"},{e:"🐮",n:"Cow Face"},{e:"🐷",n:"Pig Face"},{e:"🐸",n:"Frog"},{e:"🐵",n:"Monkey Face"},{e:"🙈",n:"See-No-Evil Monkey"},{e:"🙉",n:"Hear-No-Evil Monkey"},{e:"🙊",n:"Speak-No-Evil Monkey"},{e:"🐔",n:"Chicken"},{e:"🐧",n:"Penguin"},{e:"🐦",n:"Bird"},{e:"🐤",n:"Baby Chick"},{e:"🦆",n:"Duck"},{e:"🦅",n:"Eagle"},{e:"🦉",n:"Owl"},{e:"🦇",n:"Bat"},{e:"🐺",n:"Wolf"},{e:"🐗",n:"Boar"},{e:"🐴",n:"Horse Face"},{e:"🦄",n:"Unicorn"},{e:"🐝",n:"Honeybee"},{e:"🐛",n:"Bug"},{e:"🦋",n:"Butterfly"},{e:"🐌",n:"Snail"},{e:"🐞",n:"Lady Beetle"},{e:"🐜",n:"Ant"},{e:"🦟",n:"Mosquito"},{e:"🦗",n:"Cricket"},{e:"🕷️",n:"Spider"},{e:"🦂",n:"Scorpion"},{e:"🐢",n:"Turtle"},{e:"🐍",n:"Snake"},{e:"🦎",n:"Lizard"},{e:"🦖",n:"T-Rex"},{e:"🦕",n:"Sauropod"},{e:"🐙",n:"Octopus"},{e:"🦑",n:"Squid"},{e:"🦐",n:"Shrimp"},{e:"🦞",n:"Lobster"},{e:"🦀",n:"Crab"},{e:"🐡",n:"Blowfish"},{e:"🐠",n:"Tropical Fish"},{e:"🐟",n:"Fish"},{e:"🐬",n:"Dolphin"},{e:"🐳",n:"Spouting Whale"},{e:"🐋",n:"Whale"},{e:"🦈",n:"Shark"},{e:"🐊",n:"Crocodile"},{e:"🐅",n:"Tiger"},{e:"🐆",n:"Leopard"},{e:"🦓",n:"Zebra"},{e:"🦍",n:"Gorilla"},{e:"🦧",n:"Orangutan"},{e:"🦣",n:"Mammoth"},{e:"🐘",n:"Elephant"},{e:"🦛",n:"Hippopotamus"},{e:"🦏",n:"Rhinoceros"},{e:"🐪",n:"Camel"},{e:"🦒",n:"Giraffe"},{e:"🦘",n:"Kangaroo"},{e:"🦬",n:"Bison"},{e:"🐃",n:"Water Buffalo"},{e:"🐂",n:"Ox"},{e:"🐄",n:"Cow"},{e:"🐎",n:"Horse"},{e:"🐖",n:"Pig"},{e:"🐏",n:"Ram"},{e:"🐑",n:"Ewe"},{e:"🦙",n:"Llama"},{e:"🐐",n:"Goat"},{e:"🦌",n:"Deer"},{e:"🐕",n:"Dog"},{e:"🐩",n:"Poodle"},{e:"🦮",n:"Guide Dog"},{e:"🐈",n:"Cat"},{e:"🐓",n:"Rooster"},{e:"🦃",n:"Turkey"},{e:"🦤",n:"Dodo"},{e:"🦚",n:"Peacock"},{e:"🦜",n:"Parrot"},{e:"🦢",n:"Swan"},{e:"🦩",n:"Flamingo"},{e:"🕊️",n:"Dove"},{e:"🐇",n:"Rabbit"},{e:"🦝",n:"Raccoon"},{e:"🦨",n:"Skunk"},{e:"🦡",n:"Badger"},{e:"🦦",n:"Otter"},{e:"🦥",n:"Sloth"},{e:"🐁",n:"Mouse"},{e:"🐀",n:"Rat"},{e:"🐿️",n:"Chipmunk"},{e:"🦔",n:"Hedgehog"},{e:"🌵",n:"Cactus"},{e:"🎄",n:"Christmas Tree"},{e:"🌲",n:"Evergreen Tree"},{e:"🌳",n:"Deciduous Tree"},{e:"🌴",n:"Palm Tree"},{e:"🌱",n:"Seedling"},{e:"🌿",n:"Herb"},{e:"☘️",n:"Shamrock"},{e:"🍀",n:"Four Leaf Clover"},{e:"🎋",n:"Tanabata Tree"},{e:"🎍",n:"Pine Decoration"},{e:"🍃",n:"Leaf Fluttering in Wind"},{e:"🍂",n:"Fallen Leaf"},{e:"🍁",n:"Maple Leaf"},{e:"🌾",n:"Sheaf of Rice"},{e:"🌺",n:"Hibiscus"},{e:"🌻",n:"Sunflower"},{e:"🌹",n:"Rose"},{e:"🥀",n:"Wilted Flower"},{e:"🌷",n:"Tulip"},{e:"🌸",n:"Cherry Blossom"},{e:"💐",n:"Bouquet"},{e:"🍄",n:"Mushroom"},{e:"🌰",n:"Chestnut"},{e:"🐚",n:"Spiral Shell"},{e:"🌍",n:"Globe Showing Europe-Africa"},{e:"🌎",n:"Globe Showing Americas"},{e:"🌏",n:"Globe Showing Asia-Australia"},{e:"🌊",n:"Water Wave"},{e:"🌈",n:"Rainbow"},{e:"☁️",n:"Cloud"},{e:"⛅",n:"Sun Behind Cloud"},{e:"🌩️",n:"Cloud Lightning"},{e:"🌨️",n:"Cloud Snow"},{e:"❄️",n:"Snowflake"},{e:"⛄",n:"Snowman"},{e:"🌬️",n:"Wind Face"},{e:"🌀",n:"Cyclone"},{e:"🌂",n:"Closed Umbrella"},{e:"☂️",n:"Umbrella"},{e:"☔",n:"Umbrella Rain Drops"},{e:"⛱️",n:"Umbrella Ground"},{e:"⚡",n:"High Voltage"},{e:"🔥",n:"Fire"},{e:"💧",n:"Droplet"},{e:"🌊",n:"Water Wave"}
+  ],
+  "Food": [
+    {e:"🍏",n:"Green Apple"},{e:"🍎",n:"Red Apple"},{e:"🍐",n:"Pear"},{e:"🍊",n:"Tangerine"},{e:"🍋",n:"Lemon"},{e:"🍌",n:"Banana"},{e:"🍉",n:"Watermelon"},{e:"🍇",n:"Grapes"},{e:"🍓",n:"Strawberry"},{e:"🫐",n:"Blueberries"},{e:"🍈",n:"Melon"},{e:"🍒",n:"Cherries"},{e:"🍑",n:"Peach"},{e:"🥭",n:"Mango"},{e:"🍍",n:"Pineapple"},{e:"🥥",n:"Coconut"},{e:"🥝",n:"Kiwi Fruit"},{e:"🍅",n:"Tomato"},{e:"🍆",n:"Eggplant"},{e:"🥑",n:"Avocado"},{e:"🥦",n:"Broccoli"},{e:"🥬",n:"Leafy Green"},{e:"🥒",n:"Cucumber"},{e:"🌶️",n:"Hot Pepper"},{e:"🫑",n:"Bell Pepper"},{e:"🌽",n:"Ear of Corn"},{e:"🥕",n:"Carrot"},{e:"🧄",n:"Garlic"},{e:"🧅",n:"Onion"},{e:"🥔",n:"Potato"},{e:"🍠",n:"Roasted Sweet Potato"},{e:"🥐",n:"Croissant"},{e:"🥖",n:"Baguette Bread"},{e:"🍞",n:"Bread"},{e:"🥨",n:"Pretzel"},{e:"🥯",n:"Bagel"},{e:"🧀",n:"Cheese Wedge"},{e:"🥚",n:"Egg"},{e:"🍳",n:"Cooking"},{e:"🧈",n:"Butter"},{e:"🥞",n:"Pancakes"},{e:"🧇",n:"Waffle"},{e:"🥓",n:"Bacon"},{e:"🥩",n:"Cut of Meat"},{e:"🍗",n:"Poultry Leg"},{e:"🍖",n:"Meat on Bone"},{e:"🌭",n:"Hot Dog"},{e:"🍔",n:"Hamburger"},{e:"🍟",n:"French Fries"},{e:"🍕",n:"Pizza"},{e:"🫓",n:"Flatbread"},{e:"🥪",n:"Sandwich"},{e:"🥙",n:"Stuffed Flatbread"},{e:"🧆",n:"Falafel"},{e:"🌮",n:"Taco"},{e:"🌯",n:"Burrito"},{e:"🫔",n:"Tamale"},{e:"🥗",n:"Green Salad"},{e:"🥘",n:"Shallow Pan of Food"},{e:"🫕",n:"Fondue"},{e:"🍝",n:"Spaghetti"},{e:"🍜",n:"Steaming Bowl"},{e:"🍲",n:"Pot of Food"},{e:"🍛",n:"Curry Rice"},{e:"🍣",n:"Sushi"},{e:"🍱",n:"Bento Box"},{e:"🥟",n:"Dumpling"},{e:"🦪",n:"Oyster"},{e:"🍤",n:"Fried Shrimp"},{e:"🍙",n:"Rice Ball"},{e:"🍚",n:"Cooked Rice"},{e:"🍘",n:"Rice Cracker"},{e:"🍥",n:"Fish Cake Swirl"},{e:"🥮",n:"Moon Cake"},{e:"🍡",n:"Dango"},{e:"🧁",n:"Cupcake"},{e:"🍰",n:"Shortcake"},{e:"🎂",n:"Birthday Cake"},{e:"🍮",n:"Custard"},{e:"🍭",n:"Lollipop"},{e:"🍬",n:"Candy"},{e:"🍫",n:"Chocolate Bar"},{e:"🍿",n:"Popcorn"},{e:"🍩",n:"Doughnut"},{e:"🍪",n:"Cookie"},{e:"🌰",n:"Chestnut"},{e:"🥜",n:"Peanuts"},{e:"🍯",n:"Honey Pot"},{e:"🧃",n:"Beverage Box"},{e:"🥤",n:"Cup with Straw"},{e:"🧋",n:"Bubble Tea"},{e:"☕",n:"Hot Beverage"},{e:"🫖",n:"Teapot"},{e:"🍵",n:"Teacup Without Handle"},{e:"🧉",n:"Mate"},{e:"🍺",n:"Beer Mug"},{e:"🍻",n:"Clinking Beer Mugs"},{e:"🥂",n:"Clinking Glasses"},{e:"🍷",n:"Wine Glass"},{e:"🥃",n:"Tumbler Glass"},{e:"🍸",n:"Cocktail Glass"},{e:"🍹",n:"Tropical Drink"},{e:"🍾",n:"Bottle with Popping Cork"},{e:"🧊",n:"Ice"},{e:"🥄",n:"Spoon"},{e:"🍴",n:"Fork and Knife"},{e:"🍽️",n:"Fork and Knife with Plate"}
+  ],
+  "Travel": [
+    {e:"🚗",n:"Automobile"},{e:"🚕",n:"Taxi"},{e:"🚙",n:"Sport Utility Vehicle"},{e:"🚌",n:"Bus"},{e:"🚎",n:"Trolleybus"},{e:"🏎️",n:"Racing Car"},{e:"🚓",n:"Police Car"},{e:"🚑",n:"Ambulance"},{e:"🚒",n:"Fire Engine"},{e:"🚐",n:"Minibus"},{e:"🛻",n:"Pickup Truck"},{e:"🚚",n:"Delivery Truck"},{e:"🚛",n:"Articulated Lorry"},{e:"🚜",n:"Tractor"},{e:"🏍️",n:"Motorcycle"},{e:"🛵",n:"Motor Scooter"},{e:"🚲",n:"Bicycle"},{e:"🛴",n:"Kick Scooter"},{e:"🛹",n:"Skateboard"},{e:"🛼",n:"Roller Skate"},{e:"🚏",n:"Bus Stop"},{e:"🛣️",n:"Motorway"},{e:"🛤️",n:"Railway Track"},{e:"🛞",n:"Wheel"},{e:"⛽",n:"Fuel Pump"},{e:"🚦",n:"Vertical Traffic Light"},{e:"🚥",n:"Horizontal Traffic Light"},{e:"🚧",n:"Construction"},{e:"⚓",n:"Anchor"},{e:"🛟",n:"Ring Buoy"},{e:"⛵",n:"Sailboat"},{e:"🚤",n:"Speedboat"},{e:"🛥️",n:"Motor Boat"},{e:"🛳️",n:"Passenger Ship"},{e:"⛴️",n:"Ferry"},{e:"🚢",n:"Ship"},{e:"✈️",n:"Airplane"},{e:"🛩️",n:"Small Airplane"},{e:"🛫",n:"Airplane Departure"},{e:"🛬",n:"Airplane Arrival"},{e:"🪂",n:"Parachute"},{e:"💺",n:"Seat"},{e:"🚁",n:"Helicopter"},{e:"🚟",n:"Suspension Railway"},{e:"🚠",n:"Mountain Cableway"},{e:"🚡",n:"Aerial Tramway"},{e:"🛰️",n:"Satellite"},{e:"🚀",n:"Rocket"},{e:"🛸",n:"Flying Saucer"},{e:"🌍",n:"Globe Europe-Africa"},{e:"🗺️",n:"World Map"},{e:"🗾",n:"Map of Japan"},{e:"🧭",n:"Compass"},{e:"🏔️",n:"Snow-Capped Mountain"},{e:"⛰️",n:"Mountain"},{e:"🌋",n:"Volcano"},{e:"🗻",n:"Mount Fuji"},{e:"🏕️",n:"Camping"},{e:"🏖️",n:"Beach with Umbrella"},{e:"🏜️",n:"Desert"},{e:"🏝️",n:"Desert Island"},{e:"🏟️",n:"Stadium"},{e:"🏛️",n:"Classical Building"},{e:"🏗️",n:"Building Construction"},{e:"🏘️",n:"Houses"},{e:"🏚️",n:"Derelict House"},{e:"🏠",n:"House"},{e:"🏡",n:"House with Garden"},{e:"🏢",n:"Office Building"},{e:"🏣",n:"Japanese Post Office"},{e:"🏤",n:"Post Office"},{e:"🏥",n:"Hospital"},{e:"🏦",n:"Bank"},{e:"🏨",n:"Hotel"},{e:"🏩",n:"Love Hotel"},{e:"🏪",n:"Convenience Store"},{e:"🏫",n:"School"},{e:"🏬",n:"Department Store"},{e:"🏭",n:"Factory"},{e:"🏯",n:"Japanese Castle"},{e:"🏰",n:"Castle"},{e:"💒",n:"Wedding"},{e:"🗼",n:"Tokyo Tower"},{e:"🗽",n:"Statue of Liberty"},{e:"⛪",n:"Church"},{e:"🕌",n:"Mosque"},{e:"🛕",n:"Hindu Temple"},{e:"🕍",n:"Synagogue"},{e:"⛩️",n:"Shinto Shrine"},{e:"🕋",n:"Kaaba"},{e:"⛲",n:"Fountain"},{e:"⛺",n:"Tent"},{e:"🌁",n:"Foggy"},{e:"🌃",n:"Night with Stars"},{e:"🏙️",n:"Cityscape"},{e:"🌄",n:"Sunrise Over Mountains"},{e:"🌅",n:"Sunrise"},{e:"🌆",n:"Cityscape at Dusk"},{e:"🌇",n:"Sunset"},{e:"🌉",n:"Bridge at Night"},{e:"🎠",n:"Carousel Horse"},{e:"🛝",n:"Playground Slide"},{e:"🎡",n:"Ferris Wheel"},{e:"🎢",n:"Roller Coaster"},{e:"💈",n:"Barber Pole"},{e:"🎪",n:"Circus Tent"}
+  ],
+  "Activities": [
+    {e:"⚽",n:"Soccer Ball"},{e:"🏀",n:"Basketball"},{e:"🏈",n:"American Football"},{e:"⚾",n:"Baseball"},{e:"🥎",n:"Softball"},{e:"🎾",n:"Tennis"},{e:"🏐",n:"Volleyball"},{e:"🏉",n:"Rugby Football"},{e:"🥏",n:"Flying Disc"},{e:"🎱",n:"Pool 8 Ball"},{e:"🏓",n:"Ping Pong"},{e:"🏸",n:"Badminton"},{e:"🏒",n:"Ice Hockey"},{e:"🏑",n:"Field Hockey"},{e:"🥍",n:"Lacrosse"},{e:"🏏",n:"Cricket Game"},{e:"🪃",n:"Boomerang"},{e:"🥅",n:"Goal Net"},{e:"⛳",n:"Flag in Hole"},{e:"🪁",n:"Bow and Arrow"},{e:"🏹",n:"Bow and Arrow"},{e:"🎣",n:"Fishing Pole"},{e:"🤿",n:"Diving Mask"},{e:"🥊",n:"Boxing Glove"},{e:"🥋",n:"Martial Arts Uniform"},{e:"🎽",n:"Running Shirt"},{e:"🛹",n:"Skateboard"},{e:"🛷",n:"Sled"},{e:"🥌",n:"Curling Stone"},{e:"🏂",n:"Snowboarder"},{e:"⛷️",n:"Skier"},{e:"🏋️",n:"Person Lifting Weights"},{e:"🤼",n:"People Wrestling"},{e:"🤸",n:"Person Cartwheeling"},{e:"⛹️",n:"Person Bouncing Ball"},{e:"🤺",n:"Person Fencing"},{e:"🏇",n:"Horse Racing"},{e:"🧘",n:"Person in Lotus Position"},{e:"🏄",n:"Person Surfing"},{e:"🏊",n:"Person Swimming"},{e:"🤽",n:"Person Playing Water Polo"},{e:"🚣",n:"Person Rowing Boat"},{e:"🧗",n:"Person Climbing"},{e:"🚵",n:"Person Mountain Biking"},{e:"🚴",n:"Person Biking"},{e:"🏆",n:"Trophy"},{e:"🥇",n:"1st Place Medal"},{e:"🥈",n:"2nd Place Medal"},{e:"🥉",n:"3rd Place Medal"},{e:"🏅",n:"Sports Medal"},{e:"🎖️",n:"Military Medal"},{e:"🎗️",n:"Reminder Ribbon"},{e:"🎫",n:"Ticket"},{e:"🎟️",n:"Admission Tickets"},{e:"🎪",n:"Circus Tent"},{e:"🤹",n:"Person Juggling"},{e:"🎭",n:"Performing Arts"},{e:"🩰",n:"Ballet Shoes"},{e:"🎨",n:"Artist Palette"},{e:"🎬",n:"Clapper Board"},{e:"🎤",n:"Microphone"},{e:"🎧",n:"Headphone"},{e:"🎼",n:"Musical Score"},{e:"🎵",n:"Musical Note"},{e:"🎶",n:"Musical Notes"},{e:"🎷",n:"Saxophone"},{e:"🪗",n:"Accordion"},{e:"🎸",n:"Guitar"},{e:"🎹",n:"Musical Keyboard"},{e:"🎺",n:"Trumpet"},{e:"🎻",n:"Violin"},{e:"🪕",n:"Banjo"},{e:"🥁",n:"Drum"},{e:"🪘",n:"Long Drum"},{e:"🎯",n:"Bullseye"},{e:"🪀",n:"Yo-Yo"},{e:"🪁",n:"Yo-Yo2"},{e:"🎲",n:"Game Die"},{e:"🧩",n:"Puzzle Piece"},{e:"🪄",n:"Magic Wand"},{e:"🎮",n:"Video Game"},{e:"🕹️",n:"Joystick"},{e:"🎰",n:"Slot Machine"},{e:"🎳",n:"Bowling"},{e:"🧸",n:"Teddy Bear"},{e:"🪆",n:"Nesting Dolls"},{e:"🪅",n:"Piñata"},{e:"🎭",n:"Performing Arts"}
+  ],
+  "Objects": [
+    {e:"⌚",n:"Watch"},{e:"📱",n:"Mobile Phone"},{e:"📲",n:"Mobile Phone Arrow"},{e:"💻",n:"Laptop"},{e:"⌨️",n:"Keyboard"},{e:"🖥️",n:"Desktop Computer"},{e:"🖨️",n:"Printer"},{e:"🖱️",n:"Computer Mouse"},{e:"🖲️",n:"Trackball"},{e:"💽",n:"Computer Disk"},{e:"💾",n:"Floppy Disk"},{e:"💿",n:"Optical Disk"},{e:"📀",n:"DVD"},{e:"🧮",n:"Abacus"},{e:"📷",n:"Camera"},{e:"📸",n:"Camera Flash"},{e:"📹",n:"Video Camera"},{e:"🎥",n:"Movie Camera"},{e:"📽️",n:"Film Projector"},{e:"🎞️",n:"Film Frames"},{e:"📞",n:"Telephone Receiver"},{e:"☎️",n:"Telephone"},{e:"📟",n:"Pager"},{e:"📠",n:"Fax Machine"},{e:"📺",n:"Television"},{e:"📻",n:"Radio"},{e:"🧭",n:"Compass"},{e:"⏱️",n:"Stopwatch"},{e:"⏰",n:"Alarm Clock"},{e:"🕰️",n:"Mantelpiece Clock"},{e:"⌛",n:"Hourglass Done"},{e:"⏳",n:"Hourglass Not Done"},{e:"📡",n:"Satellite Antenna"},{e:"🔋",n:"Battery"},{e:"🪫",n:"Low Battery"},{e:"🔌",n:"Electric Plug"},{e:"💡",n:"Light Bulb"},{e:"🔦",n:"Flashlight"},{e:"🕯️",n:"Candle"},{e:"🧱",n:"Brick"},{e:"💎",n:"Gem Stone"},{e:"🔧",n:"Wrench"},{e:"🪛",n:"Screwdriver"},{e:"🔨",n:"Hammer"},{e:"⚒️",n:"Hammer and Pick"},{e:"🛠️",n:"Hammer and Wrench"},{e:"⛏️",n:"Pick"},{e:"🔩",n:"Nut and Bolt"},{e:"🗜️",n:"Clamp"},{e:"⚙️",n:"Gear"},{e:"🗡️",n:"Dagger"},{e:"⚔️",n:"Crossed Swords"},{e:"🛡️",n:"Shield"},{e:"🪚",n:"Carpentry Saw"},{e:"🔫",n:"Water Pistol"},{e:"🪃",n:"Boomerang"},{e:"🪝",n:"Hook"},{e:"🧲",n:"Magnet"},{e:"🪜",n:"Ladder"},{e:"🧪",n:"Test Tube"},{e:"🧫",n:"Petri Dish"},{e:"🧬",n:"DNA"},{e:"🔭",n:"Telescope"},{e:"🔬",n:"Microscope"},{e:"🩺",n:"Stethoscope"},{e:"🩻",n:"X-Ray"},{e:"🩹",n:"Adhesive Bandage"},{e:"💊",n:"Pill"},{e:"💉",n:"Syringe"},{e:"🩸",n:"Drop of Blood"},{e:"🚪",n:"Door"},{e:"🪞",n:"Mirror"},{e:"🪟",n:"Window"},{e:"🛏️",n:"Bed"},{e:"🛋️",n:"Couch and Lamp"},{e:"🪑",n:"Chair"},{e:"🚽",n:"Toilet"},{e:"🪠",n:"Plunger"},{e:"🚿",n:"Shower"},{e:"🛁",n:"Bathtub"},{e:"🧴",n:"Lotion Bottle"},{e:"🪒",n:"Razor"},{e:"🧻",n:"Roll of Paper"},{e:"🧺",n:"Basket"},{e:"🧹",n:"Broom"},{e:"🧸",n:"Teddy Bear"},{e:"🛒",n:"Shopping Cart"},{e:"🚬",n:"Cigarette"},{e:"⚰️",n:"Coffin"},{e:"🪦",n:"Headstone"},{e:"🏺",n:"Amphora"},{e:"🔮",n:"Crystal Ball"},{e:"🧿",n:"Nazar Amulet"},{e:"🪬",n:"Hamsa"},{e:"💈",n:"Barber Pole"},{e:"🔑",n:"Key"},{e:"🗝️",n:"Old Key"},{e:"🔐",n:"Locked with Key"},{e:"🔒",n:"Locked"},{e:"🔓",n:"Unlocked"},{e:"📦",n:"Package"},{e:"📫",n:"Closed Mailbox Raised Flag"},{e:"📬",n:"Open Mailbox Raised Flag"},{e:"📪",n:"Closed Mailbox Lowered Flag"},{e:"📭",n:"Open Mailbox Lowered Flag"},{e:"📮",n:"Postbox"},{e:"🗳️",n:"Ballot Box"},{e:"✏️",n:"Pencil"},{e:"✒️",n:"Black Nib"},{e:"🖊️",n:"Pen"},{e:"🖋️",n:"Fountain Pen"},{e:"📝",n:"Memo"},{e:"📁",n:"File Folder"},{e:"📂",n:"Open File Folder"},{e:"🗂️",n:"Card Index Dividers"},{e:"📅",n:"Calendar"},{e:"📆",n:"Tear-Off Calendar"},{e:"🗒️",n:"Spiral Notepad"},{e:"🗓️",n:"Spiral Calendar"},{e:"📇",n:"Card Index"},{e:"📈",n:"Chart Increasing"},{e:"📉",n:"Chart Decreasing"},{e:"📊",n:"Bar Chart"},{e:"📋",n:"Clipboard"},{e:"📌",n:"Pushpin"},{e:"📍",n:"Round Pushpin"},{e:"📎",n:"Paperclip"},{e:"🖇️",n:"Linked Paperclips"},{e:"📏",n:"Straight Ruler"},{e:"📐",n:"Triangular Ruler"},{e:"✂️",n:"Scissors"},{e:"🗃️",n:"Card File Box"},{e:"🗄️",n:"File Cabinet"},{e:"🗑️",n:"Wastebasket"},{e:"🔍",n:"Magnifying Glass Left"},{e:"🔎",n:"Magnifying Glass Right"},{e:"🔏",n:"Locked with Pen"},{e:"💰",n:"Money Bag"},{e:"🪙",n:"Coin"},{e:"💴",n:"Yen Banknote"},{e:"💵",n:"Dollar Banknote"},{e:"💶",n:"Euro Banknote"},{e:"💷",n:"Pound Banknote"},{e:"💸",n:"Money with Wings"},{e:"💳",n:"Credit Card"},{e:"🧾",n:"Receipt"},{e:"📧",n:"E-Mail"},{e:"📨",n:"Incoming Envelope"},{e:"📩",n:"Envelope Arrow"},{e:"📤",n:"Outbox Tray"},{e:"📥",n:"Inbox Tray"},{e:"📦",n:"Package"},{e:"📣",n:"Megaphone"},{e:"📢",n:"Loudspeaker"},{e:"🔔",n:"Bell"},{e:"🔕",n:"Bell with Slash"},{e:"📯",n:"Postal Horn"},{e:"🎙️",n:"Studio Microphone"},{e:"🎚️",n:"Level Slider"},{e:"🎛️",n:"Control Knobs"}
+  ],
+  "Symbols": [
+    {e:"❤️",n:"Red Heart"},{e:"🧡",n:"Orange Heart"},{e:"💛",n:"Yellow Heart"},{e:"💚",n:"Green Heart"},{e:"💙",n:"Blue Heart"},{e:"💜",n:"Purple Heart"},{e:"🖤",n:"Black Heart"},{e:"🤍",n:"White Heart"},{e:"🤎",n:"Brown Heart"},{e:"💔",n:"Broken Heart"},{e:"❤️‍🔥",n:"Heart on Fire"},{e:"❤️‍🩹",n:"Mending Heart"},{e:"💕",n:"Two Hearts"},{e:"💞",n:"Revolving Hearts"},{e:"💓",n:"Beating Heart"},{e:"💗",n:"Growing Heart"},{e:"💖",n:"Sparkling Heart"},{e:"💘",n:"Heart with Arrow"},{e:"💝",n:"Heart with Ribbon"},{e:"💟",n:"Heart Decoration"},{e:"☮️",n:"Peace Symbol"},{e:"✝️",n:"Latin Cross"},{e:"☦️",n:"Orthodox Cross"},{e:"🕉️",n:"Om"},{e:"☸️",n:"Wheel of Dharma"},{e:"✡️",n:"Star of David"},{e:"🔯",n:"Dotted Six-Pointed Star"},{e:"🪯",n:"Khanda"},{e:"☯️",n:"Yin Yang"},{e:"☦️",n:"Orthodox Cross"},{e:"🛐",n:"Place of Worship"},{e:"⛎",n:"Ophiuchus"},{e:"♈",n:"Aries"},{e:"♉",n:"Taurus"},{e:"♊",n:"Gemini"},{e:"♋",n:"Cancer"},{e:"♌",n:"Leo"},{e:"♍",n:"Virgo"},{e:"♎",n:"Libra"},{e:"♏",n:"Scorpio"},{e:"♐",n:"Sagittarius"},{e:"♑",n:"Capricorn"},{e:"♒",n:"Aquarius"},{e:"♓",n:"Pisces"},{e:"🆔",n:"ID Button"},{e:"⚛️",n:"Atom Symbol"},{e:"🉑",n:"Japanese Acceptable Button"},{e:"☢️",n:"Radioactive"},{e:"☣️",n:"Biohazard"},{e:"📴",n:"Mobile Phone Off"},{e:"📳",n:"Vibration Mode"},{e:"🈶",n:"Japanese Not Free of Charge Button"},{e:"🈚",n:"Japanese Free of Charge Button"},{e:"🈸",n:"Japanese Application Button"},{e:"🈺",n:"Japanese Open for Business Button"},{e:"🈷️",n:"Japanese Monthly Amount Button"},{e:"✴️",n:"Eight-Pointed Star"},{e:"🆚",n:"VS Button"},{e:"💮",n:"White Flower"},{e:"🉐",n:"Japanese Bargain Button"},{e:"㊙️",n:"Japanese Secret Button"},{e:"㊗️",n:"Japanese Congratulations Button"},{e:"🈴",n:"Japanese Passing Grade Button"},{e:"🈵",n:"Japanese No Vacancy Button"},{e:"🈹",n:"Japanese Discount Button"},{e:"🈲",n:"Japanese Prohibited Button"},{e:"🅰️",n:"A Button Blood Type"},{e:"🅱️",n:"B Button Blood Type"},{e:"🆎",n:"AB Button Blood Type"},{e:"🆑",n:"CL Button"},{e:"🅾️",n:"O Button Blood Type"},{e:"🆘",n:"SOS Button"},{e:"❌",n:"Cross Mark"},{e:"⭕",n:"Hollow Red Circle"},{e:"🛑",n:"Stop Sign"},{e:"⛔",n:"No Entry"},{e:"📛",n:"Name Badge"},{e:"🚫",n:"Prohibited"},{e:"💯",n:"Hundred Points"},{e:"💢",n:"Anger Symbol"},{e:"♨️",n:"Hot Springs"},{e:"🚷",n:"No Pedestrians"},{e:"🚯",n:"No Littering"},{e:"🚳",n:"No Bicycles"},{e:"🚱",n:"Non-Potable Water"},{e:"🔞",n:"No One Under Eighteen"},{e:"📵",n:"No Mobile Phones"},{e:"🔕",n:"Bell with Slash"},{e:"🔇",n:"Muted Speaker"},{e:"🔕",n:"Bell with Slash"},{e:"❗",n:"Exclamation Mark"},{e:"❕",n:"White Exclamation Mark"},{e:"❓",n:"Question Mark"},{e:"❔",n:"White Question Mark"},{e:"‼️",n:"Double Exclamation Mark"},{e:"⁉️",n:"Exclamation Question Mark"},{e:"🔅",n:"Dim Button"},{e:"🔆",n:"Bright Button"},{e:"〽️",n:"Part Alternation Mark"},{e:"⚠️",n:"Warning"},{e:"🚸",n:"Children Crossing"},{e:"🔱",n:"Trident Emblem"},{e:"⚜️",n:"Fleur-de-Lis"},{e:"🔰",n:"Japanese Symbol for Beginner"},{e:"♻️",n:"Recycling Symbol"},{e:"✅",n:"Check Mark Button"},{e:"🈯",n:"Japanese Reserved Button"},{e:"💹",n:"Chart Increasing with Yen"},{e:"❎",n:"Cross Mark Button"},{e:"🌐",n:"Globe with Meridians"},{e:"💠",n:"Diamond with a Dot"},{e:"Ⓜ️",n:"Circled M"},{e:"🌀",n:"Cyclone"},{e:"💤",n:"ZZZ"},{e:"🏧",n:"ATM Sign"},{e:"🚾",n:"Water Closet"},{e:"♿",n:"Wheelchair Symbol"},{e:"🅿️",n:"P Button"},{e:"🛗",n:"Elevator"},{e:"🈳",n:"Japanese Vacancy Button"},{e:"🚰",n:"Potable Water"},{e:"🚹",n:"Men's Room"},{e:"🚺",n:"Women's Room"},{e:"🚼",n:"Baby Symbol"},{e:"⚧️",n:"Transgender Symbol"},{e:"🚻",n:"Restroom"},{e:"🚮",n:"Litter in Bin Sign"},{e:"🎦",n:"Cinema"},{e:"📶",n:"Antenna Bars"},{e:"🈁",n:"Japanese Here Button"},{e:"🔣",n:"Input Symbols"},{e:"ℹ️",n:"Information"},{e:"🔤",n:"Input Latin Letters"},{e:"🔡",n:"Input Latin Lowercase"},{e:"🔠",n:"Input Latin Uppercase"},{e:"🆖",n:"NG Button"},{e:"🆗",n:"OK Button"},{e:"🆙",n:"UP Button"},{e:"🆒",n:"COOL Button"},{e:"🆕",n:"NEW Button"},{e:"🆓",n:"FREE Button"},{e:"0️⃣",n:"Keycap 0"},{e:"1️⃣",n:"Keycap 1"},{e:"2️⃣",n:"Keycap 2"},{e:"3️⃣",n:"Keycap 3"},{e:"4️⃣",n:"Keycap 4"},{e:"5️⃣",n:"Keycap 5"},{e:"6️⃣",n:"Keycap 6"},{e:"7️⃣",n:"Keycap 7"},{e:"8️⃣",n:"Keycap 8"},{e:"9️⃣",n:"Keycap 9"},{e:"🔟",n:"Keycap 10"},{e:"🔢",n:"Input Numbers"},{e:"#️⃣",n:"Keycap Hash"},{e:"*️⃣",n:"Keycap Asterisk"},{e:"⏏️",n:"Eject Button"},{e:"▶️",n:"Play Button"},{e:"⏸️",n:"Pause Button"},{e:"⏹️",n:"Stop Button"},{e:"⏺️",n:"Record Button"},{e:"⏭️",n:"Next Track Button"},{e:"⏮️",n:"Last Track Button"},{e:"⏩",n:"Fast-Forward Button"},{e:"⏪",n:"Fast Reverse Button"},{e:"⏫",n:"Fast Up Button"},{e:"⏬",n:"Fast Down Button"},{e:"◀️",n:"Reverse Button"},{e:"🔼",n:"Upwards Button"},{e:"🔽",n:"Downwards Button"},{e:"➡️",n:"Right Arrow"},{e:"⬅️",n:"Left Arrow"},{e:"⬆️",n:"Up Arrow"},{e:"⬇️",n:"Down Arrow"},{e:"↗️",n:"Up-Right Arrow"},{e:"↘️",n:"Down-Right Arrow"},{e:"↙️",n:"Down-Left Arrow"},{e:"↖️",n:"Up-Left Arrow"},{e:"↕️",n:"Up-Down Arrow"},{e:"↔️",n:"Left-Right Arrow"},{e:"🔀",n:"Shuffle Tracks Button"},{e:"🔁",n:"Repeat Button"},{e:"🔂",n:"Repeat Single Button"},{e:"🔃",n:"Clockwise Vertical Arrows"},{e:"🎵",n:"Musical Note"},{e:"🎶",n:"Musical Notes"},{e:"➕",n:"Plus"},{e:"➖",n:"Minus"},{e:"➗",n:"Divide"},{e:"✖️",n:"Multiply"},{e:"♾️",n:"Infinity"},{e:"💲",n:"Heavy Dollar Sign"},{e:"💱",n:"Currency Exchange"},{e:"©️",n:"Copyright"},{e:"®️",n:"Registered"},{e:"™️",n:"Trade Mark"},{e:"🔚",n:"END Arrow"},{e:"🔙",n:"BACK Arrow"},{e:"🔛",n:"ON Arrow"},{e:"🔝",n:"TOP Arrow"},{e:"🔜",n:"SOON Arrow"},{e:"⭕",n:"Hollow Red Circle"},{e:"🔘",n:"Radio Button"},{e:"🔴",n:"Red Circle"},{e:"🟠",n:"Orange Circle"},{e:"🟡",n:"Yellow Circle"},{e:"🟢",n:"Green Circle"},{e:"🔵",n:"Blue Circle"},{e:"🟣",n:"Purple Circle"},{e:"⚫",n:"Black Circle"},{e:"⚪",n:"White Circle"},{e:"🟤",n:"Brown Circle"},{e:"🔺",n:"Red Triangle Pointed Up"},{e:"🔻",n:"Red Triangle Pointed Down"},{e:"💠",n:"Diamond with a Dot"},{e:"🔷",n:"Large Blue Diamond"},{e:"🔶",n:"Large Orange Diamond"},{e:"🔹",n:"Small Blue Diamond"},{e:"🔸",n:"Small Orange Diamond"},{e:"▪️",n:"Black Small Square"},{e:"▫️",n:"White Small Square"},{e:"◾",n:"Black Medium-Small Square"},{e:"◽",n:"White Medium-Small Square"},{e:"◼️",n:"Black Medium Square"},{e:"◻️",n:"White Medium Square"},{e:"🔲",n:"Black Square Button"},{e:"🔳",n:"White Square Button"},{e:"⬛",n:"Black Large Square"},{e:"⬜",n:"White Large Square"},{e:"🟥",n:"Red Square"},{e:"🟧",n:"Orange Square"},{e:"🟨",n:"Yellow Square"},{e:"🟩",n:"Green Square"},{e:"🟦",n:"Blue Square"},{e:"🟪",n:"Purple Square"},{e:"⬛",n:"Black Large Square"},{e:"🟫",n:"Brown Square"}
+  ]
+};
+
+// Build category tabs
+const tabsContainer = document.querySelector('#category-tabs .tabs');
+const categoriesContainer = document.getElementById('categories-container');
+const categories = Object.keys(EMOJIS);
+
+categories.forEach((cat, i) => {
+  // Tab
+  const tab = document.createElement('a');
+  tab.className = 'tab tab-bordered' + (i === 0 ? ' tab-active' : '');
+  tab.textContent = cat;
+  tab.href = `#cat-${cat}`;
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab-active'));
+    tab.classList.add('tab-active');
+  });
+  tabsContainer.appendChild(tab);
+
+  // Section
+  const section = document.createElement('section');
+  section.className = 'category-section mb-8';
+  section.id = `cat-${cat}`;
+
+  const heading = document.createElement('h2');
+  heading.className = 'text-sm font-semibold text-base-content/50 uppercase tracking-widest mb-3 pt-2';
+  heading.textContent = cat;
+  section.appendChild(heading);
+
+  const grid = document.createElement('div');
+  grid.className = 'flex flex-wrap gap-0.5';
+
+  EMOJIS[cat].forEach(item => {
+    grid.appendChild(makeEmojiBtn(item));
+  });
+
+  section.appendChild(grid);
+  categoriesContainer.appendChild(section);
+});
+
+function makeEmojiBtn({ e, n }) {
+  const btn = document.createElement('button');
+  btn.className = 'emoji-btn tooltip tooltip-bottom';
+  btn.setAttribute('data-tip', n);
+  btn.setAttribute('aria-label', n);
+  btn.textContent = e;
+  btn.addEventListener('click', () => copyEmoji(e, n));
+  return btn;
+}
+
+// Search
+const searchInput = document.getElementById('search');
+const clearBtn = document.getElementById('clear-btn');
+const searchResults = document.getElementById('search-results');
+const searchGrid = document.getElementById('search-grid');
+const noResults = document.getElementById('no-results');
+const categoriesView = document.getElementById('categories-container');
+const categoryTabsEl = document.getElementById('category-tabs');
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim().toLowerCase();
+  clearBtn.classList.toggle('hidden', !q);
+
+  if (!q) {
+    searchResults.classList.add('hidden');
+    categoriesView.classList.remove('hidden');
+    categoryTabsEl.classList.remove('hidden');
+    return;
+  }
+
+  searchResults.classList.remove('hidden');
+  categoriesView.classList.add('hidden');
+  categoryTabsEl.classList.add('hidden');
+  searchGrid.innerHTML = '';
+
+  const matched = [];
+  categories.forEach(cat => {
+    EMOJIS[cat].forEach(item => {
+      if (item.n.toLowerCase().includes(q) || item.e.includes(q)) {
+        matched.push(item);
+      }
+    });
+  });
+
+  // Deduplicate by emoji character
+  const seen = new Set();
+  const unique = matched.filter(item => {
+    if (seen.has(item.e)) return false;
+    seen.add(item.e);
+    return true;
+  });
+
+  noResults.classList.toggle('hidden', unique.length > 0);
+
+  unique.forEach(item => {
+    searchGrid.appendChild(makeEmojiBtn(item));
+  });
+});
+
+clearBtn.addEventListener('click', () => {
+  searchInput.value = '';
+  searchInput.dispatchEvent(new Event('input'));
+  searchInput.focus();
+});
+
+// Copy to clipboard
+function copyEmoji(emoji, name) {
+  navigator.clipboard.writeText(emoji).then(() => {
+    showToast(emoji, name);
+  }).catch(() => {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = emoji;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast(emoji, name);
+  });
+}
+
+let toastTimer;
+function showToast(emoji, name) {
+  const container = document.getElementById('toast-container');
+  container.innerHTML = '';
+  const alert = document.createElement('div');
+  alert.className = 'alert alert-success shadow-lg py-2 px-4 flex items-center gap-2 text-sm';
+  alert.innerHTML = `<span style="font-size:1.4rem">${emoji}</span><span><strong>${name}</strong> copied!</span>`;
+  container.appendChild(alert);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { container.innerHTML = ''; }, 2000);
+}
+
+// Dark mode toggle
+const themeToggle = document.getElementById('theme-toggle');
+themeToggle.addEventListener('change', () => {
+  document.documentElement.setAttribute('data-theme', themeToggle.checked ? 'dark' : 'light');
+});
+
+// Highlight active tab on scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      const catName = id.replace('cat-', '');
+      document.querySelectorAll('.tab').forEach(t => {
+        t.classList.toggle('tab-active', t.textContent === catName);
+      });
+    }
+  });
+}, { rootMargin: '-30% 0px -60% 0px' });
+
+document.querySelectorAll('.category-section').forEach(sec => observer.observe(sec));
+</script>
+</body>
+</html>
